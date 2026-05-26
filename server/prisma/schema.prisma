@@ -1,0 +1,170 @@
+// SubMan - Prisma Schema
+// Gestion d'abonnements avec PostgreSQL + Express + Prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ===== Clients (entreprises/porteurs de projet) =====
+model Client {
+  id            String         @id @default(uuid())
+  name          String
+  email         String         @unique
+  passwordHash  String         @map("password_hash")
+  phone         String?
+  logoUrl       String?        @map("logo_url")
+  isActive      Boolean        @default(true) @map("is_active")
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+
+  plans         Plan[]
+  customers     Customer[]
+  payments      Payment[]
+
+  @@map("clients")
+}
+
+// ===== Plans d'abonnement =====
+model Plan {
+  id            String         @id @default(uuid())
+  clientId      String         @map("client_id")
+  name          String
+  description   String?
+  price         Decimal        @db.Decimal(10, 2)
+  currency      String         @default("XOF")
+  billingCycle  BillingCycle   @default(MONTHLY) @map("billing_cycle")
+  durationDays  Int?           @map("duration_days")
+  trialDays     Int?           @map("trial_days")
+  isActive      Boolean        @default(true) @map("is_active")
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+
+  client        Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  subscriptions Subscription[]
+
+  @@index([clientId])
+  @@map("plans")
+}
+
+model Customer {
+  id            String         @id @default(uuid())
+  clientId      String         @map("client_id")
+  name          String
+  email         String
+  phone         String?
+  metadata      Json?
+  isActive      Boolean        @default(true) @map("is_active")
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+
+  client        Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  subscriptions Subscription[]
+  payments      Payment[]
+
+  @@unique([clientId, email])
+  @@index([clientId])
+  @@map("customers")
+}
+
+model Subscription {
+  id            String         @id @default(uuid())
+  clientId      String         @map("client_id")
+  customerId    String         @map("customer_id")
+  planId        String         @map("plan_id")
+  status        SubStatus      @default(ACTIVE)
+  startDate     DateTime       @default(now()) @map("start_date")
+  endDate       DateTime?      @map("end_date")
+  trialEndDate  DateTime?      @map("trial_end_date")
+  cancelledAt   DateTime?      @map("cancelled_at")
+  metadata      Json?
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+
+  client        Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  customer      Customer       @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  plan          Plan           @relation(fields: [planId], references: [id])
+  payments      Payment[]
+
+  @@index([clientId])
+  @@index([customerId])
+  @@index([planId])
+  @@index([status])
+  @@map("subscriptions")
+}
+
+model Payment {
+  id            String         @id @default(uuid())
+  clientId      String         @map("client_id")
+  customerId    String         @map("customer_id")
+  subscriptionId String?       @map("subscription_id")
+  amount        Decimal        @db.Decimal(10, 2)
+  currency      String         @default("XOF")
+  method        PaymentMethod?
+  status        PaymentStatus  @default(PENDING)
+  reference     String?        @unique
+  metadata      Json?
+  paidAt        DateTime?      @map("paid_at")
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+
+  client        Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  customer      Customer       @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  subscription  Subscription?  @relation(fields: [subscriptionId], references: [id])
+
+  @@index([clientId])
+  @@index([customerId])
+  @@index([subscriptionId])
+  @@index([status])
+  @@map("payments")
+}
+
+// ===== Enums =====
+enum BillingCycle {
+  DAILY
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+  YEARLY
+  ONE_TIME
+
+  @@map("billing_cycle")
+}
+
+enum SubStatus {
+  ACTIVE
+  TRIALING
+  PAUSED
+  CANCELLED
+  EXPIRED
+
+  @@map("sub_status")
+}
+
+enum PaymentMethod {
+  ORANGE_MONEY
+  MTN_MOBILE_MONEY
+  MOOV_MONEY
+  WAVE
+  STRIPE
+  PAYPAL
+  CARD
+  CASH
+  TRANSFER
+
+  @@map("payment_method")
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REFUNDED
+  PARTIAL
+
+  @@map("payment_status")
+}
