@@ -5,8 +5,7 @@ const prisma=require('../prisma');
 const{authenticate}=require('../middleware/auth');
 const router=Router();
 
-const JWT_SECRET=proces...CRET||'subman***-key-2026';
-
+const JWT_SECRET=process.env.JWT_SECRET;
 function signToken(userId,email,role){
   return jwt.sign({role:role==='client'?'subman_client':'subman_customer',user_id:userId,email},JWT_SECRET,{expiresIn:'7d'});
 }
