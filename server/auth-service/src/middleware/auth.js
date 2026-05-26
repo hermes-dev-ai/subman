@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const JWT_SECRET=proces...CRET || 'subman***-key-2026';
+const JWT_SECRET=proces...CRET || 'submanprocess.env.JWT_SECRET-key-2026';
 function authenticate(req,res,next){
   const a=req.headers.authorization;
   if(!a||!a.startsWith('Bearer ')) return res.status(401).json({error:'Token manquant'});
